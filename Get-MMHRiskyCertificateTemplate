@@ -21,7 +21,7 @@
    IsVulnerableToADUserImpersonation: If the value is YES, then the template can be used to request a certificate for any AD user, and used as a credential to authenticate with AD.
 
 .EXAMPLE
-   .\Get-MMHRiskyCertificateTemplate.ps1
+   Get-MMHRiskyCertificateTemplates
 #>
 
 
@@ -81,5 +81,5 @@ If ($VulnerableTemplatesPublishedOnTheCA.Count -gt 0)
 
 else
 {
-    Write-Output "GOOD NEWS: No templates are vulnerable to impersonation"
+    Write-Output "GOOD NEWS: No risky templates exist."
 }
