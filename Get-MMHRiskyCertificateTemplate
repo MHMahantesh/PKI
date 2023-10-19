@@ -1,0 +1,85 @@
+<#
+.Synopsis
+   This script lists certificate templates that are vulnerable to impersonation.
+
+.DESCRIPTION
+   This script queries the Active Directory (AD) PKI container for a list of risky certificate templates that are published on enterprise CAs.
+
+   Conditions that make a certificate template risky:
+   
+   The flag is set on the template that instructs the client (certificate requester) to supply subject information in the certificate request.
+   The flag is set on the template to instruct the CA to auto-approve certificate requests.
+   Ideally, templates where the requester is allowed to supply the subject should be put in pending status, reviewed, and approved before being issued.
+   
+   The script additionally checks which of those risky templates could be used by an adversary to request a certificate for any user, and use that certificate to authenticate with AD as that user.
+   
+   The script generates a table with the following columns:
+   
+              VulnerableTemplateName:Name of the template that satisfies conditions 1 and 2 listed above.
+                          CAHostName: FQDN of the CA on which the template is published.
+                              CAName: Name of the Certification Authority.
+   IsVulnerableToADUserImpersonation: If the value is YES, then the template can be used to request a certificate for any AD user, and used as a credential to authenticate with AD.
+
+.EXAMPLE
+   .\Get-MMHRiskyCertificateTemplate.ps1
+#>
+
+
+#OIDs that indicate that the certificate can be used for AD authentication
+$AnyPurposeOID           = '2.5.29.37.0'
+$SmartCardLogonOIDOID    = '1.3.6.1.4.1.311.20.2.2'
+$ClientAuthenticationOID = '1.3.6.1.5.5.7.3.2'
+
+
+# Get the configuration naming context
+$ConfigContext = (Get-ADRootDSE).configurationnamingcontext
+
+# Get all vulnerable templates
+$VulnerableTemplates = @(Get-ADObject -filter {objectclass -eq "pkiCertificateTemplate"} -SearchBase $ConfigContext -Properties * | 
+    Where-Object {$_."msPKI-Certificate-Name-Flag" -band 1 -and -not($_."msPKI-enrollment-Flag" -band 2)})
+
+# Get all Enterprise CAs
+$EnterpriseCAs = Get-ADObject -filter {objectclass -eq "pkiEnrollmentService"} -SearchBase $ConfigContext -Properties *
+
+$VulnerableTemplatesPublishedOnTheCA = @()
+
+# Iterate over each Certificate Authority in the Enterprise
+foreach ($CertAuthority in $EnterpriseCAs)
+{
+    # Iterate over each potentially vulnerable template
+    foreach ($VulnTemplate in $VulnerableTemplates)
+    {
+        # Check if the current template is in the CA's Certificate Templates
+        if ($VulnTemplate.cn -in $CertAuthority.certificatetemplates)
+        {
+            # Check if any of the OIDs are in the template's pkiExtendedKeyUsage
+            $isVulnerable = $AnyPurposeOID -in $VulnTemplate.pkiExtendedKeyUsage -or 
+                            $SmartCardLogonOIDOID -in $VulnTemplate.pkiExtendedKeyUsage -or 
+                            $ClientAuthenticationOID -in $VulnTemplate.pkiExtendedKeyUsage
+
+            # Create a new property object with the vulnerability status
+            $Property = [ordered]@{
+                VulnerableTemplateName = $VulnTemplate.cn
+                CAHostName = $CertAuthority.DNSHostName
+                CAName = $CertAuthority.Name
+                IsVulnerableToADUserImpersonation = if($isVulnerable) {'Yes'} else {'No'}
+            }
+
+            # Add the new property object to the list of templates
+            $VulnerableTemplatesPublishedOnTheCA += New-Object -TypeName PSObject -Property $Property
+        }
+    }
+}
+
+If ($VulnerableTemplatesPublishedOnTheCA.Count -gt 0)
+{
+    Write-Output " "
+    Write-Output "Here are the templates risky templates:"
+    Write-Output " "
+    $VulnerableTemplatesPublishedOnTheCA
+}
+
+else
+{
+    Write-Output "GOOD NEWS: No templates are vulnerable to impersonation"
+}
