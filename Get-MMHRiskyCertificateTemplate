@@ -7,21 +7,22 @@
 
    Conditions that make a certificate template risky:
    
-   The flag is set on the template that instructs the client (certificate requester) to supply subject information in the certificate request.
-   The flag is set on the template to instruct the CA to auto-approve certificate requests.
+   1. The flag is set on the template that instructs the client (certificate requester) to supply subject information in the certificate request.
+   2. The flag is set on the template to instruct the CA to auto-approve certificate requests.
+   
    Ideally, templates where the requester is allowed to supply the subject should be put in pending status, reviewed, and approved before being issued.
    
    The script additionally checks which of those risky templates could be used by an adversary to request a certificate for any user, and use that certificate to authenticate with AD as that user.
    
    The script generates a table with the following columns:
    
-              VulnerableTemplateName:Name of the template that satisfies conditions 1 and 2 listed above.
+              VulnerableTemplateName: Name of the template that satisfies conditions 1 and 2 listed above.
                           CAHostName: FQDN of the CA on which the template is published.
                               CAName: Name of the Certification Authority.
    IsVulnerableToADUserImpersonation: If the value is YES, then the template can be used to request a certificate for any AD user, and used as a credential to authenticate with AD.
 
 .EXAMPLE
-   Get-MMHRiskyCertificateTemplates
+   .\Get-MMHRiskyCertificateTemplate.ps1
 #>
 
 
