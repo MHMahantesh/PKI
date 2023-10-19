@@ -74,7 +74,7 @@ foreach ($CertAuthority in $EnterpriseCAs)
 If ($VulnerableTemplatesPublishedOnTheCA.Count -gt 0)
 {
     Write-Output " "
-    Write-Output "Here are the templates risky templates:"
+    Write-Output "Here are the risky templates:"
     Write-Output " "
     $VulnerableTemplatesPublishedOnTheCA
 }
